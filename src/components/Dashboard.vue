@@ -80,11 +80,11 @@
           </a-row>
         </a-card>
       </a-col>
-      
+
       <a-col :span="24">
         <a-card title="使用说明">
           <a-steps direction="vertical" :current="-1">
-            <a-step title="第一步：连接设备" description="在左侧菜单选择串口并点击"打开串口"按钮连接RFID读卡器" />
+            <a-step title="第一步：连接设备" description="在左侧菜单选择串口并点击打开串口按钮连接RFID读卡器" />
             <a-step title="第二步：选择功能" description="在左侧菜单选择需要使用的功能" />
             <a-step title="第三步：操作卡片" description="根据界面提示进行卡片操作" />
           </a-steps>
