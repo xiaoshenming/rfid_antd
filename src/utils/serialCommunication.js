@@ -1,0 +1,293 @@
+/**
+ * 串口通信工具模块
+ * 使用Web Serial API实现浏览器与串口设备的通信
+ */
+
+class SerialCommunication {
+  constructor() {
+    this.port = null;
+    this.reader = null;
+    this.writer = null;
+    this.readableStreamClosed = null;
+    this.writableStreamClosed = null;
+    this.keepReading = true;
+  }
+
+  /**
+   * 请求串口访问权限并打开串口
+   * @param {number} baudRate - 波特率，默认115200
+   * @returns {Promise<boolean>} - 是否成功打开串口
+   */
+  async openPort(baudRate = 115200) {
+    try {
+      // 请求串口访问权限
+      this.port = await navigator.serial.requestPort();
+      
+      // 打开串口连接
+      await this.port.open({ baudRate });
+      
+      // 创建读取器和写入器
+      this.setupReader();
+      this.setupWriter();
+      
+      return true;
+    } catch (error) {
+      console.error('打开串口失败:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 设置串口读取器
+   */
+  setupReader() {
+    if (!this.port || !this.port.readable) return;
+    
+    const textDecoder = new TextDecoder();
+    this.keepReading = true;
+    
+    this.readableStreamClosed = this.port.readable.pipeTo(new WritableStream({
+      write: (chunk) => {
+        // 将接收到的数据转换为文本
+        const data = textDecoder.decode(chunk);
+        // 触发数据接收事件
+        this.onDataReceived(data);
+      }
+    }));
+  }
+
+  /**
+   * 设置串口写入器
+   */
+  setupWriter() {
+    if (!this.port || !this.port.writable) return;
+    
+    this.writer = this.port.writable.getWriter();
+  }
+
+  /**
+   * 发送数据到串口
+   * @param {string} data - 要发送的数据
+   * @returns {Promise<boolean>} - 是否成功发送数据
+   */
+  async sendData(data) {
+    if (!this.writer) return false;
+    
+    try {
+      // 确保数据以\n结尾
+      if (!data.endsWith('\n')) {
+        data += '\n';
+      }
+      
+      // 将文本转换为Uint8Array并发送
+      const encoder = new TextEncoder();
+      const dataArrayBuffer = encoder.encode(data);
+      await this.writer.write(dataArrayBuffer);
+      
+      return true;
+    } catch (error) {
+      console.error('发送数据失败:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 关闭串口连接
+   */
+  async closePort() {
+    this.keepReading = false;
+    
+    if (this.reader) {
+      await this.reader.cancel();
+      await this.readableStreamClosed;
+      this.reader = null;
+      this.readableStreamClosed = null;
+    }
+    
+    if (this.writer) {
+      await this.writer.close();
+      await this.writableStreamClosed;
+      this.writer = null;
+      this.writableStreamClosed = null;
+    }
+    
+    if (this.port) {
+      await this.port.close();
+      this.port = null;
+    }
+  }
+
+  /**
+   * 读取卡ID
+   * @returns {Promise<string|null>} - 卡ID或null（如果读取失败）
+   */
+  async readCardId() {
+    if (!this.port || !this.writer) return null;
+    
+    try {
+      // 发送RID命令读取卡ID
+      await this.sendData('RID');
+      
+      // 等待响应（实际应用中应该使用事件监听或回调）
+      return new Promise((resolve) => {
+        // 设置超时
+        const timeout = setTimeout(() => {
+          resolve(null);
+        }, 5000);
+        
+        // 设置一次性数据接收回调
+        const originalCallback = this.onDataReceived;
+        this.onDataReceived = (data) => {
+          // 恢复原始回调
+          this.onDataReceived = originalCallback;
+          clearTimeout(timeout);
+          
+          // 处理接收到的数据
+          const cardId = data.trim();
+          if (cardId) {
+            resolve(cardId);
+          } else {
+            resolve(null);
+          }
+        };
+      });
+    } catch (error) {
+      console.error('读取卡ID失败:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 读取卡数据块
+   * @returns {Promise<string|null>} - 卡数据或null（如果读取失败）
+   */
+  async readCardData() {
+    if (!this.port || !this.writer) return null;
+    
+    try {
+      // 发送RBK命令读取块数据
+      await this.sendData('RBK');
+      
+      // 等待响应
+      return new Promise((resolve) => {
+        // 设置超时
+        const timeout = setTimeout(() => {
+          resolve(null);
+        }, 10000);
+        
+        // 接收到的数据缓冲
+        let dataBuffer = '';
+        
+        // 设置一次性数据接收回调
+        const originalCallback = this.onDataReceived;
+        this.onDataReceived = (data) => {
+          dataBuffer += data;
+          
+          // 检查是否接收到完整的数据块
+          if (dataBuffer.includes('RB1:1,D:')) {
+            // 恢复原始回调
+            this.onDataReceived = originalCallback;
+            clearTimeout(timeout);
+            
+            // 提取数据部分
+            const match = dataBuffer.match(/RB1:1,D:([0-9A-F]{32})/);
+            if (match && match[1]) {
+              resolve(match[1]);
+            } else {
+              resolve(null);
+            }
+          } else if (dataBuffer.includes('RB1:0,C:')) {
+            // 读取失败
+            this.onDataReceived = originalCallback;
+            clearTimeout(timeout);
+            resolve(null);
+          }
+        };
+      });
+    } catch (error) {
+      console.error('读取卡数据失败:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 写入卡数据块
+   * @param {string} data - 要写入的数据（32位ASCII十六进制字符串）
+   * @returns {Promise<boolean>} - 是否成功写入数据
+   */
+  async writeCardData(data) {
+    if (!this.port || !this.writer) return false;
+    
+    // 验证数据格式
+    if (data.length !== 32 || !/^[0-9A-F]{32}$/.test(data)) {
+      console.error('数据格式错误: 必须是32位十六进制字符串');
+      return false;
+    }
+    
+    try {
+      // 发送WBK命令写入数据
+      await this.sendData(`WBK${data}`);
+      
+      // 等待响应
+      return new Promise((resolve) => {
+        // 设置超时
+        const timeout = setTimeout(() => {
+          resolve(false);
+        }, 10000);
+        
+        // 接收到的数据缓冲
+        let dataBuffer = '';
+        
+        // 设置一次性数据接收回调
+        const originalCallback = this.onDataReceived;
+        this.onDataReceived = (data) => {
+          dataBuffer += data;
+          
+          // 检查写入是否成功
+          if (dataBuffer.includes('WB1:1,C:0') && dataBuffer.includes('写入完成')) {
+            // 恢复原始回调
+            this.onDataReceived = originalCallback;
+            clearTimeout(timeout);
+            resolve(true);
+          } else if (dataBuffer.includes('WB1:1,C:') || 
+                     dataBuffer.includes('写入命令格式错误') || 
+                     dataBuffer.includes('未知命令')) {
+            // 写入失败
+            this.onDataReceived = originalCallback;
+            clearTimeout(timeout);
+            resolve(false);
+          }
+        };
+      });
+    } catch (error) {
+      console.error('写入卡数据失败:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 数据接收回调函数
+   * @param {string} data - 接收到的数据
+   */
+  onDataReceived(data) {
+    // 默认实现，实际使用时会被覆盖
+    console.log('接收到数据:', data);
+  }
+
+  /**
+   * 获取可用串口列表
+   * @returns {Promise<Array>} - 可用串口列表
+   */
+  static async getAvailablePorts() {
+    try {
+      // 注意：Web Serial API不提供列出所有可用串口的方法
+      // 用户必须通过navigator.serial.requestPort()手动选择串口
+      return [];
+    } catch (error) {
+      console.error('获取可用串口列表失败:', error);
+      return [];
+    }
+  }
+}
+
+export default SerialCommunication;

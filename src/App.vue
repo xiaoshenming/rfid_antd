@@ -1,30 +1,44 @@
-<script setup>
-import HelloWorld from './components/HelloWorld.vue'
-</script>
-
 <template>
-  <div>
-    <a href="https://vite.dev" target="_blank">
-      <img src="/vite.svg" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://vuejs.org/" target="_blank">
-      <img src="./assets/vue.svg" class="logo vue" alt="Vue logo" />
-    </a>
-  </div>
-  <HelloWorld msg="Vite + Vue" />
+  <a-config-provider :locale="locale">
+    <login-view v-if="!isLoggedIn" @login-success="handleLoginSuccess" />
+    <main-view v-else @logout="handleLogout" />
+  </a-config-provider>
 </template>
 
-<style scoped>
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
+<script setup>
+import { ref } from 'vue';
+import zhCN from 'ant-design-vue/es/locale/zh_CN';
+import LoginView from './components/LoginView.vue';
+import MainView from './components/MainView.vue';
+
+// 国际化配置
+const locale = zhCN;
+
+// 登录状态
+const isLoggedIn = ref(false);
+
+// 处理登录成功
+const handleLoginSuccess = () => {
+  isLoggedIn.value = true;
+};
+
+// 处理登出
+const handleLogout = () => {
+  isLoggedIn.value = false;
+};
+</script>
+
+<style>
+/* 全局样式 */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+    'Noto Color Emoji';
 }
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #42b883aa);
+
+#app {
+  height: 100vh;
 }
 </style>
