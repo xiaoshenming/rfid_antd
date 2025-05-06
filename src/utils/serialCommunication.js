@@ -193,36 +193,58 @@ class SerialCommunication {
   async readCardId() {
     if (!this.port || !this.writer) return null;
 
-    try {
-      // 发送RID命令读取卡ID
-      await this.sendData('RID');
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 200;
+    let retryCount = 0;
+    let buffer = '';
+    
+    while (retryCount < MAX_RETRIES) {
+      try {
+        // 发送RID命令读取卡ID
+        await this.sendData('RID');
 
-      // 等待响应（实际应用中应该使用事件监听或回调）
-      return new Promise((resolve) => {
-        // 设置超时
-        const timeout = setTimeout(() => {
-          resolve(null);
-        }, 5000);
+        // 等待响应
+        return new Promise((resolve) => {
+          const timeout = setTimeout(() => {
+            if (retryCount < MAX_RETRIES - 1) {
+              retryCount++;
+              setTimeout(() => resolve(this.readCardId()), RETRY_DELAY);
+            } else {
+              resolve(null);
+            }
+          }, 1000);
 
-        // 设置一次性数据接收回调
-        const originalCallback = this.onDataReceived;
-        this.onDataReceived = (data) => {
-          // 恢复原始回调
-          this.onDataReceived = originalCallback;
-          clearTimeout(timeout);
-
-          // 处理接收到的数据
-          const cardId = data.trim();
-          if (cardId) {
-            resolve(cardId);
-          } else {
-            resolve(null);
-          }
-        };
-      });
-    } catch (error) {
-      console.error('读取卡ID失败:', error);
-      return null;
+          // 设置数据接收回调
+          const originalCallback = this.onDataReceived;
+          this.onDataReceived = (data) => {
+            buffer += data;
+            
+            // 检查数据完整性
+            if (buffer.includes('Id:') || buffer.length >= 10) {
+              this.onDataReceived = originalCallback;
+              clearTimeout(timeout);
+              
+              // 处理接收到的数据
+              const cardId = buffer.trim();
+              buffer = '';
+              
+              if (cardId) {
+                resolve(cardId);
+              } else {
+                resolve(null);
+              }
+            }
+          };
+        });
+      } catch (error) {
+        console.error(`读取卡ID失败(尝试${retryCount + 1}/${MAX_RETRIES}):`, error);
+        if (retryCount < MAX_RETRIES - 1) {
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+          retryCount++;
+        } else {
+          return null;
+        }
+      }
     }
   }
 
