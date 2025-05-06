@@ -284,10 +284,15 @@ async function queryBalance(formType) {
   loading.value = true;
   try {
     // 读取卡ID
-    const cardId = await serialComm.readCardId();
+    let cardId = await serialComm.readCardId();
     if (!cardId) {
       message.error('读卡失败');
       return;
+    }
+    
+    // 去除'Id:'前缀
+    if (cardId.startsWith('Id:')) {
+      cardId = cardId.substring(3);
     }
     
     // 等待500ms确保ID读取完成
@@ -350,10 +355,15 @@ async function queryCardInfo(formType) {
   loading.value = true;
   try {
     // 读取卡ID
-    const cardId = await serialComm.readCardId();
+    let cardId = await serialComm.readCardId();
     if (!cardId) {
       message.error('读卡失败');
       return;
+    }
+    
+    // 去除'Id:'前缀
+    if (cardId.startsWith('Id:')) {
+      cardId = cardId.substring(3);
     }
     
     // 等待500ms确保ID读取完成
