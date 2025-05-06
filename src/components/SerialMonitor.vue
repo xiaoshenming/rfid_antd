@@ -4,18 +4,19 @@
       <template #extra>
         <a-button type="primary" size="small" @click="clearLogs">清空日志</a-button>
       </template>
-      
+
       <div class="monitor-content">
         <div class="log-container">
           <div class="log-header">接收数据</div>
-          <div class="log-content" ref="receiveLogRef">
+          <div class="log-content" ref="receiveLogRef" style="text-align: left;">
             <div v-for="(log, index) in receiveLogs" :key="'r'+index" class="log-item">
               <span class="log-time">{{ log.time }}</span>
               <span class="log-data">{{ log.data }}</span>
             </div>
           </div>
         </div>
-        
+
+
         <div class="log-container">
           <div class="log-header">发送数据</div>
           <div class="log-content" ref="sendLogRef">
@@ -26,10 +27,11 @@
           </div>
         </div>
       </div>
-      
+
       <div class="send-container">
         <a-input-group compact>
-          <a-input v-model:value="sendData" placeholder="输入要发送的数据" style="width: calc(100% - 100px)" @keyup.enter="sendSerialData" />
+          <a-input v-model:value="sendData" placeholder="输入要发送的数据" style="width: calc(100% - 100px)"
+                   @keyup.enter="sendSerialData"/>
           <a-button type="primary" :disabled="!isPortOpen" @click="sendSerialData">发送</a-button>
         </a-input-group>
       </div>
@@ -38,8 +40,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, inject, watch } from 'vue';
-import { message } from 'ant-design-vue';
+import {ref, onMounted, onUnmounted, inject, watch} from 'vue';
+import {message} from 'ant-design-vue';
 
 // 从父组件获取串口通信实例
 const serialComm = inject('serialComm');
@@ -102,12 +104,12 @@ const sendSerialData = async () => {
     message.warning('请输入要发送的数据');
     return;
   }
-  
+
   if (!isPortOpen.value) {
     message.warning('请先打开串口');
     return;
   }
-  
+
   try {
     const success = await serialComm.sendData(sendData.value);
     if (success) {

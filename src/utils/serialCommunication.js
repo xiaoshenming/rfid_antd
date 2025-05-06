@@ -64,7 +64,7 @@ class SerialCommunication {
       }
     }));
   }
-  
+
   /**
    * 事件处理相关
    */
@@ -72,7 +72,7 @@ class SerialCommunication {
   _eventListeners = {
     'data-received': []
   };
-  
+
   /**
    * 添加事件监听器
    * @param {string} eventName - 事件名称
@@ -84,7 +84,7 @@ class SerialCommunication {
     }
     this._eventListeners[eventName].push(callback);
   }
-  
+
   /**
    * 移除事件监听器
    * @param {string} eventName - 事件名称
@@ -92,13 +92,13 @@ class SerialCommunication {
    */
   removeEventListener(eventName, callback) {
     if (!this._eventListeners[eventName]) return;
-    
+
     const index = this._eventListeners[eventName].indexOf(callback);
     if (index !== -1) {
       this._eventListeners[eventName].splice(index, 1);
     }
   }
-  
+
   /**
    * 触发事件
    * @param {string} eventName - 事件名称
@@ -106,7 +106,7 @@ class SerialCommunication {
    */
   dispatchEvent(eventName, data) {
     if (!this._eventListeners[eventName]) return;
-    
+
     for (const callback of this._eventListeners[eventName]) {
       callback(data);
     }
@@ -117,7 +117,7 @@ class SerialCommunication {
    */
   setupWriter() {
     if (!this.port || !this.port.writable) return;
-    
+
     this.writer = this.port.writable.getWriter();
   }
 
@@ -155,21 +155,21 @@ class SerialCommunication {
    */
   async closePort() {
     this.keepReading = false;
-    
+
     if (this.reader) {
       await this.reader.cancel();
       await this.readableStreamClosed;
       this.reader = null;
       this.readableStreamClosed = null;
     }
-    
+
     if (this.writer) {
       await this.writer.close();
       await this.writableStreamClosed;
       this.writer = null;
       this.writableStreamClosed = null;
     }
-    
+
     if (this.port) {
       await this.port.close();
       this.port = null;
@@ -192,25 +192,25 @@ class SerialCommunication {
    */
   async readCardId() {
     if (!this.port || !this.writer) return null;
-    
+
     try {
       // 发送RID命令读取卡ID
       await this.sendData('RID');
-      
+
       // 等待响应（实际应用中应该使用事件监听或回调）
       return new Promise((resolve) => {
         // 设置超时
         const timeout = setTimeout(() => {
           resolve(null);
         }, 5000);
-        
+
         // 设置一次性数据接收回调
         const originalCallback = this.onDataReceived;
         this.onDataReceived = (data) => {
           // 恢复原始回调
           this.onDataReceived = originalCallback;
           clearTimeout(timeout);
-          
+
           // 处理接收到的数据
           const cardId = data.trim();
           if (cardId) {
@@ -232,32 +232,32 @@ class SerialCommunication {
    */
   async readCardData() {
     if (!this.port || !this.writer) return null;
-    
+
     try {
       // 发送RBK命令读取块数据
       await this.sendData('RBK');
-      
+
       // 等待响应
       return new Promise((resolve) => {
         // 设置超时
         const timeout = setTimeout(() => {
           resolve(null);
         }, 10000);
-        
+
         // 接收到的数据缓冲
         let dataBuffer = '';
-        
+
         // 设置一次性数据接收回调
         const originalCallback = this.onDataReceived;
         this.onDataReceived = (data) => {
           dataBuffer += data;
-          
+
           // 检查是否接收到完整的数据块
           if (dataBuffer.includes('RB1:1,D:')) {
             // 恢复原始回调
             this.onDataReceived = originalCallback;
             clearTimeout(timeout);
-            
+
             // 提取数据部分
             const match = dataBuffer.match(/RB1:1,D:([0-9A-F]{32})/);
             if (match && match[1]) {
@@ -286,40 +286,40 @@ class SerialCommunication {
    */
   async writeCardData(data) {
     if (!this.port || !this.writer) return false;
-    
+
     // 验证数据格式
     if (data.length !== 32 || !/^[0-9A-F]{32}$/.test(data)) {
       console.error('数据格式错误: 必须是32位十六进制字符串');
       return false;
     }
-    
+
     try {
       // 发送WBK命令写入数据
       await this.sendData(`WBK${data}`);
-      
+
       // 等待响应
       return new Promise((resolve) => {
         // 设置超时
         const timeout = setTimeout(() => {
           resolve(false);
         }, 10000);
-        
+
         // 接收到的数据缓冲
         let dataBuffer = '';
-        
+
         // 设置一次性数据接收回调
         const originalCallback = this.onDataReceived;
         this.onDataReceived = (data) => {
           dataBuffer += data;
-          
+
           // 检查写入是否成功
           if (dataBuffer.includes('WB1:1,C:0') && dataBuffer.includes('写入完成')) {
             // 恢复原始回调
             this.onDataReceived = originalCallback;
             clearTimeout(timeout);
             resolve(true);
-          } else if (dataBuffer.includes('WB1:1,C:') || 
-                     dataBuffer.includes('写入命令格式错误') || 
+          } else if (dataBuffer.includes('WB1:1,C:') ||
+                     dataBuffer.includes('写入命令格式错误') ||
                      dataBuffer.includes('未知命令')) {
             // 写入失败
             this.onDataReceived = originalCallback;
@@ -334,14 +334,6 @@ class SerialCommunication {
     }
   }
 
-  /**
-   * 数据接收回调函数
-   * @param {string} data - 接收到的数据
-   */
-  onDataReceived(data) {
-    // 默认实现，实际使用时会被覆盖
-    console.log('接收到数据:', data);
-  }
 
   /**
    * 获取可用串口列表
