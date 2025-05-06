@@ -299,7 +299,7 @@ async function queryBalance(formType) {
     await new Promise(resolve => setTimeout(resolve, 500));
     
     // 读取卡数据
-    const data = await serialComm.readCardData(cardId);
+    const data = await serialComm.readCardData(rechargeForm.cardId);
     if (!data) {
       message.error('读取卡数据失败');
       return;
@@ -370,7 +370,7 @@ async function queryCardInfo(formType) {
     await new Promise(resolve => setTimeout(resolve, 500));
     
     // 读取卡数据
-    const data = await serialComm.readCardData(cardId);
+    const data = await serialComm.readCardData(rechargeForm.cardId);
     if (!data) {
       message.error('读取卡数据失败');
       return;
@@ -504,7 +504,7 @@ async function doRecharge() {
     await new Promise(resolve => setTimeout(resolve, 500));
     
     // 读取卡数据
-    const data = await serialComm.readCardData(cardId);
+    const data = await serialComm.readCardData(rechargeForm.cardId);
     if (!data) {
       message.error('读取卡数据失败');
       return;
@@ -584,7 +584,7 @@ async function doConsume() {
     await new Promise(resolve => setTimeout(resolve, 500));
     
     // 读取卡数据
-    const data = await serialComm.readCardData(cardId);
+    const data = await serialComm.readCardData(rechargeForm.cardId);
     if (!data) {
       message.error('读取卡数据失败');
       return;
@@ -659,7 +659,7 @@ async function doLost() {
     await new Promise(resolve => setTimeout(resolve, 500));
     
     // 读取卡数据
-    const data = await serialComm.readCardData(cardId);
+    const data = await serialComm.readCardData(rechargeForm.cardId);
     if (!data) {
       message.error('读取卡数据失败');
       return;
