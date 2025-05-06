@@ -248,7 +248,7 @@ async function readCardId(formType) {
     message.error('请先打开串口');
     return;
   }
-  
+
   loading.value = true;
   try {
     let cardId = await serialComm.readCardId();
@@ -257,7 +257,7 @@ async function readCardId(formType) {
       if (cardId.startsWith('Id:')) {
         cardId = cardId.substring(3);
       }
-      
+
       switch (formType) {
         case 'register':
           registerForm.cardId = cardId;
@@ -280,7 +280,7 @@ async function queryBalance(formType) {
     message.error('请先打开串口');
     return;
   }
-  
+
   loading.value = true;
   try {
     // 读取卡ID
@@ -289,40 +289,40 @@ async function queryBalance(formType) {
       message.error('读卡失败');
       return;
     }
-    
+
     // 去除'Id:'前缀
     if (cardId.startsWith('Id:')) {
       cardId = cardId.substring(3);
     }
-    
+
     // 等待500ms确保ID读取完成
     await new Promise(resolve => setTimeout(resolve, 500));
-    
+
     // 读取卡数据
     const data = await serialComm.readCardData(rechargeForm.cardId);
     if (!data) {
       message.error('读取卡数据失败');
       return;
     }
-    
+
     // 解析卡数据
     const cardInfo = parseCardData(data);
     if (!cardInfo) {
       message.error('解析卡数据失败');
       return;
     }
-    
+
     // 检查卡状态
     if (!cardInfo.isRegistered) {
       message.error('卡未注册');
       return;
     }
-    
+
     if (cardInfo.isLost) {
       message.error('卡已挂失');
       return;
     }
-    
+
     // 更新表单数据
     switch (formType) {
       case 'recharge':
@@ -336,7 +336,7 @@ async function queryBalance(formType) {
         consumeForm.currentBalance = cardInfo.balance.toFixed(2);
         break;
     }
-    
+
     message.success('查询余额成功');
   } catch (error) {
     message.error(`查询余额失败: ${error.message}`);
@@ -351,7 +351,7 @@ async function queryCardInfo(formType) {
     message.error('请先打开串口');
     return;
   }
-  
+
   loading.value = true;
   try {
     // 读取卡ID
@@ -360,40 +360,40 @@ async function queryCardInfo(formType) {
       message.error('读卡失败');
       return;
     }
-    
+
     // 去除'Id:'前缀
     if (cardId.startsWith('Id:')) {
       cardId = cardId.substring(3);
     }
-    
+
     // 等待500ms确保ID读取完成
     await new Promise(resolve => setTimeout(resolve, 500));
-    
+
     // 读取卡数据
     const data = await serialComm.readCardData(rechargeForm.cardId);
     if (!data) {
       message.error('读取卡数据失败');
       return;
     }
-    
+
     // 解析卡数据
     const cardInfo = parseCardData(data);
     if (!cardInfo) {
       message.error('解析卡数据失败');
       return;
     }
-    
+
     // 检查卡状态
     if (!cardInfo.isRegistered) {
       message.error('卡未注册');
       return;
     }
-    
+
     if (formType === 'lost' && cardInfo.isLost) {
       message.error('卡已挂失');
       return;
     }
-    
+
     // 更新表单数据
     switch (formType) {
       case 'lost':
@@ -407,7 +407,7 @@ async function queryCardInfo(formType) {
         cancelForm.currentBalance = cardInfo.balance.toFixed(2);
         break;
     }
-    
+
     message.success('查询卡信息成功');
   } catch (error) {
     message.error(`查询卡信息失败: ${error.message}`);
@@ -422,22 +422,22 @@ async function doRegister() {
     message.error('请先打开串口');
     return;
   }
-  
+
   if (!registerForm.cardId) {
     message.error('请先读卡');
     return;
   }
-  
+
   if (!registerForm.studentId) {
     message.error('请输入学号');
     return;
   }
-  
+
   if (registerForm.balance <= 0 || registerForm.balance > 9999) {
     message.error('金额必须在1-9999之间');
     return;
   }
-  
+
   loading.value = true;
   try {
     // 构造卡数据
@@ -447,19 +447,19 @@ async function doRegister() {
       balance: registerForm.balance,
       studentId: registerForm.studentId
     });
-    
+
     if (!cardData) {
       message.error('构造卡数据失败');
       return;
     }
-    
+
     // 写入卡数据
     const success = await serialComm.writeCardData(cardData);
     if (!success) {
       message.error('写入卡数据失败');
       return;
     }
-    
+
     // 保存操作记录
     saveOperation({
       cardId: registerForm.cardId,
@@ -467,9 +467,9 @@ async function doRegister() {
       amount: registerForm.balance,
       operationTime: new Date().toLocaleString()
     });
-    
+
     message.success('注册成功');
-    
+
     // 重置表单
     registerForm.cardId = '';
     registerForm.studentId = '';
@@ -487,17 +487,17 @@ async function doRecharge() {
     message.error('请先打开串口');
     return;
   }
-  
+
   if (!rechargeForm.cardId) {
     message.error('请先查询卡信息');
     return;
   }
-  
+
   if (rechargeForm.amount <= 0) {
     message.error('充值金额必须大于0');
     return;
   }
-  
+
   loading.value = true;
   try {
     // 使用缓存的卡信息
@@ -507,32 +507,32 @@ async function doRecharge() {
       balance: parseFloat(rechargeForm.currentBalance),
       studentId: rechargeForm.studentId
     };
-    
+
     // 检查余额上限
     const newBalance = cardInfo.balance + rechargeForm.amount;
     if (newBalance > 9999) {
       message.error('充值后余额超出上限(9999)');
       return;
     }
-    
+
     // 构造新卡数据
     const newCardData = buildCardData({
       ...cardInfo,
       balance: newBalance
     });
-    
+
     if (!newCardData) {
       message.error('构造卡数据失败');
       return;
     }
-    
+
     // 写入卡数据
     const success = await serialComm.writeCardData(newCardData);
     if (!success) {
       message.error('写入卡数据失败');
       return;
     }
-    
+
     // 保存操作记录
     saveOperation({
       cardId: rechargeForm.cardId,
@@ -540,10 +540,10 @@ async function doRecharge() {
       amount: rechargeForm.amount,
       operationTime: new Date().toLocaleString()
     });
-    
+
     // 更新显示
     rechargeForm.currentBalance = newBalance.toFixed(2);
-    
+
     message.success(`充值成功，当前余额: ${newBalance.toFixed(2)}元`);
   } catch (error) {
     message.error(`充值失败: ${error.message}`);
@@ -558,17 +558,17 @@ async function doConsume() {
     message.error('请先打开串口');
     return;
   }
-  
+
   if (!consumeForm.cardId) {
     message.error('请先查询卡信息');
     return;
   }
-  
+
   if (consumeForm.amount <= 0) {
     message.error('消费金额必须大于0');
     return;
   }
-  
+
   loading.value = true;
   try {
     // 使用缓存的卡信息
@@ -578,32 +578,32 @@ async function doConsume() {
       balance: parseFloat(consumeForm.currentBalance),
       studentId: consumeForm.studentId
     };
-    
+
     // 检查余额是否充足
     if (cardInfo.balance < consumeForm.amount) {
       message.error('余额不足');
       return;
     }
-    
+
     // 构造新卡数据
     const newBalance = cardInfo.balance - consumeForm.amount;
     const newCardData = buildCardData({
       ...cardInfo,
       balance: newBalance
     });
-    
+
     if (!newCardData) {
       message.error('构造卡数据失败');
       return;
     }
-    
+
     // 写入卡数据
     const success = await serialComm.writeCardData(newCardData);
     if (!success) {
       message.error('写入卡数据失败');
       return;
     }
-    
+
     // 保存操作记录
     saveOperation({
       cardId: consumeForm.cardId,
@@ -611,10 +611,10 @@ async function doConsume() {
       amount: consumeForm.amount,
       operationTime: new Date().toLocaleString()
     });
-    
+
     // 更新显示
     consumeForm.currentBalance = newBalance.toFixed(2);
-    
+
     message.success(`消费成功，当前余额: ${newBalance.toFixed(2)}元`);
   } catch (error) {
     message.error(`消费失败: ${error.message}`);
@@ -629,49 +629,49 @@ async function doLost() {
     message.error('请先打开串口');
     return;
   }
-  
+
   if (!lostForm.cardId) {
     message.error('请先查询卡信息');
     return;
   }
-  
+
   loading.value = true;
   try {
     // 等待500ms确保ID读取完成
     await new Promise(resolve => setTimeout(resolve, 500));
-    
+
     // 读取卡数据
     const data = await serialComm.readCardData(rechargeForm.cardId);
     if (!data) {
       message.error('读取卡数据失败');
       return;
     }
-    
+
     // 解析卡数据
     const cardInfo = parseCardData(data);
     if (!cardInfo) {
       message.error('解析卡数据失败');
       return;
     }
-    
+
     // 构造新卡数据（修改挂失状态为true）
     const newCardData = buildCardData({
       ...cardInfo,
       isLost: true
     });
-    
+
     if (!newCardData) {
       message.error('构造卡数据失败');
       return;
     }
-    
+
     // 写入卡数据
     const success = await serialComm.writeCardData(newCardData);
     if (!success) {
       message.error('写入卡数据失败');
       return;
     }
-    
+
     // 保存操作记录
     saveOperation({
       cardId: lostForm.cardId,
@@ -679,9 +679,9 @@ async function doLost() {
       amount: 0,
       operationTime: new Date().toLocaleString()
     });
-    
+
     message.success('挂失成功');
-    
+
     // 重置表单
     lostForm.cardId = '';
     lostForm.studentId = '';
@@ -699,13 +699,12 @@ async function doCancel() {
     message.error('请先打开串口');
     return;
   }
-  
   if (!cancelForm.cardId) {
     message.error('请先查询卡信息');
     return;
   }
-  
-  // 确认注销
+
+  // 弹出确认对话框
   Modal.confirm({
     title: '确认注销',
     content: `确定要注销卡号为 ${cancelForm.cardId} 的饭卡吗？注销后卡内余额将无法恢复！`,
@@ -714,39 +713,33 @@ async function doCancel() {
     onOk: async () => {
       loading.value = true;
       try {
-        // 读取卡数据
-        const data = await serialComm.readCardData();
-        if (!data) {
-          message.error('读取卡数据失败');
-          return;
-        }
-        
-        // 解析卡数据
-        const cardInfo = parseCardData(data);
-        if (!cardInfo) {
-          message.error('解析卡数据失败');
-          return;
-        }
-        
-        // 构造新卡数据（修改注册状态为false）
+        // 从 cancelForm 中提取已有数据，不再重新读取卡数据
+        const cardInfo = {
+          isRegistered: true,  // 假设之前是注册状态
+          isLost: false,       // 假设未挂失
+          studentId: cancelForm.studentId,
+          balance: parseFloat(cancelForm.currentBalance)
+        };
+
+        // 构造注销后的卡数据（isRegistered 设为 false，balance 设为 0）
         const newCardData = buildCardData({
           ...cardInfo,
           isRegistered: false,
           balance: 0
         });
-        
+
         if (!newCardData) {
           message.error('构造卡数据失败');
           return;
         }
-        
-        // 写入卡数据
+
+        // 写入新数据到卡中
         const success = await serialComm.writeCardData(newCardData);
         if (!success) {
           message.error('写入卡数据失败');
           return;
         }
-        
+
         // 保存操作记录
         saveOperation({
           cardId: cancelForm.cardId,
@@ -754,9 +747,9 @@ async function doCancel() {
           amount: 0,
           operationTime: new Date().toLocaleString()
         });
-        
+
         message.success('注销成功');
-        
+
         // 重置表单
         cancelForm.cardId = '';
         cancelForm.studentId = '';
