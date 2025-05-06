@@ -47,23 +47,36 @@ class SerialCommunication {
    */
   setupReader() {
     if (!this.port || !this.port.readable) return;
-    // 使用GB18030解码
+    
+    // 创建显式读取器
+    this.reader = this.port.readable.getReader();
     let textDecoder;
+    
     try {
       textDecoder = new TextDecoder('gb18030');
     } catch (e) {
-      textDecoder = new TextDecoder(); // 浏览器不支持gb18030时降级
+      textDecoder = new TextDecoder();
     }
-    this.keepReading = true;
-    this.readableStreamClosed = this.port.readable.pipeTo(new WritableStream({
-      write: (chunk) => {
-        // 将接收到的数据转换为文本
-        const data = textDecoder.decode(chunk);
-        // 触发数据接收事件
-        this.onDataReceived(data);
+  
+    const readChunk = async () => {
+      while (this.keepReading) {
+        try {
+          const { value, done } = await this.reader.read();
+          if (done) break;
+          
+          const data = textDecoder.decode(value);
+          this.onDataReceived(data);
+        } catch (error) {
+          console.error('读取数据时出错:', error);
+          break;
+        }
       }
-    }));
-  }
+      await this.reader.releaseLock();
+      console.log('显式读取器已释放');
+    };
+    
+    readChunk();
+  } 
 
   /**
    * 事件处理相关
@@ -155,24 +168,55 @@ class SerialCommunication {
    */
   async closePort() {
     this.keepReading = false;
-
-    if (this.reader) {
-      await this.reader.cancel();
-      await this.readableStreamClosed;
-      this.reader = null;
-      this.readableStreamClosed = null;
-    }
-
-    if (this.writer) {
-      await this.writer.close();
-      await this.writableStreamClosed;
-      this.writer = null;
-      this.writableStreamClosed = null;
-    }
-
-    if (this.port) {
-      await this.port.close();
-      this.port = null;
+    console.log('开始关闭串口...');
+  
+    try {
+      // 1. 处理写入器
+      if (this.writer) {
+        await this.writer.close().catch(e => console.error('写入器关闭失败:', e));
+        await new Promise(resolve => setTimeout(resolve, 50)); // 等待关闭完成
+        if (this.writer && this.writer.releaseLock) {
+          this.writer.releaseLock();
+        }
+        this.writer = null;
+        console.log('写入器已关闭');
+      }
+  
+      // 2. 处理读取器
+      if (this.reader) {
+        await this.reader.cancel().catch(e => console.error('读取器取消失败:', e));
+        if (this.reader.releaseLock) {
+          await this.reader.releaseLock();
+        }
+        this.reader = null;
+        console.log('显式读取器已释放');
+      }
+  
+      // 3. 处理端口
+      if (this.port) {
+        // 强制关闭流
+        if (this.port.readable && this.port.readable.locked) {
+          const tempReader = this.port.readable.getReader();
+          await tempReader.cancel();
+          await tempReader.releaseLock();
+          console.log('强制释放读取流');
+        }
+        
+        if (this.port.writable && this.port.writable.locked) {
+          const tempWriter = this.port.writable.getWriter();
+          await tempWriter.close();
+          await tempWriter.releaseLock();
+          console.log('强制释放写入流');
+        }
+  
+        await this.port.close();
+        this.port = null;
+        console.log('串口已成功关闭');
+      }
+  
+    } catch (error) {
+      console.error('关闭串口时发生严重错误:', error);
+      throw error;
     }
   }
 
