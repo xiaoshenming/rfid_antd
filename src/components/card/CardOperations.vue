@@ -251,8 +251,13 @@ async function readCardId(formType) {
   
   loading.value = true;
   try {
-    const cardId = await serialComm.readCardId();
+    let cardId = await serialComm.readCardId();
     if (cardId) {
+      // 去除'Id:'前缀
+      if (cardId.startsWith('Id:')) {
+        cardId = cardId.substring(3);
+      }
+      
       switch (formType) {
         case 'register':
           registerForm.cardId = cardId;
