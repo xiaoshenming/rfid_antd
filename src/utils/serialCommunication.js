@@ -55,6 +55,53 @@ class SerialCommunication {
       }
     }));
   }
+  
+  /**
+   * 事件处理相关
+   */
+  // 事件监听器存储
+  _eventListeners = {
+    'data-received': []
+  };
+  
+  /**
+   * 添加事件监听器
+   * @param {string} eventName - 事件名称
+   * @param {Function} callback - 回调函数
+   */
+  addEventListener(eventName, callback) {
+    if (!this._eventListeners[eventName]) {
+      this._eventListeners[eventName] = [];
+    }
+    this._eventListeners[eventName].push(callback);
+  }
+  
+  /**
+   * 移除事件监听器
+   * @param {string} eventName - 事件名称
+   * @param {Function} callback - 回调函数
+   */
+  removeEventListener(eventName, callback) {
+    if (!this._eventListeners[eventName]) return;
+    
+    const index = this._eventListeners[eventName].indexOf(callback);
+    if (index !== -1) {
+      this._eventListeners[eventName].splice(index, 1);
+    }
+  }
+  
+  /**
+   * 触发事件
+   * @param {string} eventName - 事件名称
+   * @param {any} data - 事件数据
+   */
+  dispatchEvent(eventName, data) {
+    if (!this._eventListeners[eventName]) return;
+    
+    for (const callback of this._eventListeners[eventName]) {
+      callback(data);
+    }
+  }
 
   /**
    * 设置串口写入器
@@ -115,6 +162,16 @@ class SerialCommunication {
       await this.port.close();
       this.port = null;
     }
+  }
+
+  /**
+   * 数据接收处理
+   * @param {string} data - 接收到的数据
+   */
+  onDataReceived(data) {
+    console.log('接收到数据:', data);
+    // 触发data-received事件，通知监听器
+    this.dispatchEvent('data-received', data);
   }
 
   /**

@@ -55,7 +55,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, shallowRef, onMounted, defineAsyncComponent } from 'vue';
+import { ref, reactive, shallowRef, onMounted, defineAsyncComponent, provide } from 'vue';
 import { message } from 'ant-design-vue';
 import SerialCommunication from '../utils/serialCommunication';
 
@@ -70,13 +70,18 @@ const LostCard = defineAsyncComponent(() => import('./card/LostCard.vue'));
 const CancelCard = defineAsyncComponent(() => import('./card/CancelCard.vue'));
 const OperationRecords = defineAsyncComponent(() => import('./card/OperationRecords.vue'));
 const Dashboard = defineAsyncComponent(() => import('./Dashboard.vue'));
+const SerialMonitor = defineAsyncComponent(() => import('./SerialMonitor.vue'));
 
 // 串口通信实例
 const serialComm = new SerialCommunication();
 
+// 提供串口通信实例给子组件
+provide('serialComm', serialComm);
+
 // 状态变量
 const selectedPort = ref('');
 const isPortOpen = ref(false);
+provide('isPortOpen', isPortOpen);
 const selectedKeys = ref(['dashboard']);
 const currentComponent = shallowRef(Dashboard);
 
@@ -117,6 +122,11 @@ const menuItems = [
     label: '操作记录',
     title: '操作记录',
   },
+  {
+    key: 'serial-monitor',
+    label: '串口监控',
+    title: '串口监控',
+  },
 ];
 
 // 处理菜单点击
@@ -142,6 +152,9 @@ const handleMenuClick = (e) => {
       break;
     case 'records':
       currentComponent.value = OperationRecords;
+      break;
+    case 'serial-monitor':
+      currentComponent.value = SerialMonitor;
       break;
   }
 };
