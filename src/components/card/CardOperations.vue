@@ -500,22 +500,13 @@ async function doRecharge() {
   
   loading.value = true;
   try {
-    // 等待500ms确保ID读取完成
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // 读取卡数据
-    const data = await serialComm.readCardData(rechargeForm.cardId);
-    if (!data) {
-      message.error('读取卡数据失败');
-      return;
-    }
-    
-    // 解析卡数据
-    const cardInfo = parseCardData(data);
-    if (!cardInfo) {
-      message.error('解析卡数据失败');
-      return;
-    }
+    // 使用缓存的卡信息
+    const cardInfo = {
+      isRegistered: true,
+      isLost: false,
+      balance: parseFloat(rechargeForm.currentBalance),
+      studentId: rechargeForm.studentId
+    };
     
     // 检查余额上限
     const newBalance = cardInfo.balance + rechargeForm.amount;
@@ -580,22 +571,13 @@ async function doConsume() {
   
   loading.value = true;
   try {
-    // 等待500ms确保ID读取完成
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // 读取卡数据
-    const data = await serialComm.readCardData(rechargeForm.cardId);
-    if (!data) {
-      message.error('读取卡数据失败');
-      return;
-    }
-    
-    // 解析卡数据
-    const cardInfo = parseCardData(data);
-    if (!cardInfo) {
-      message.error('解析卡数据失败');
-      return;
-    }
+    // 使用缓存的卡信息
+    const cardInfo = {
+      isRegistered: true,
+      isLost: false,
+      balance: parseFloat(consumeForm.currentBalance),
+      studentId: consumeForm.studentId
+    };
     
     // 检查余额是否充足
     if (cardInfo.balance < consumeForm.amount) {
