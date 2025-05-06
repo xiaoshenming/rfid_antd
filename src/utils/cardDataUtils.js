@@ -73,12 +73,21 @@ export function buildCardData(cardInfo) {
     const hexBalance = cardInfo.balance.toString(16).toUpperCase().padStart(4, '0');
     
     // 学号(12位)
-    const paddedStudentId = cardInfo.studentId.padStart(12, '0');
+    const paddedStudentId = cardInfo.studentId.padEnd(12, '0').substring(0, 12);
     
     // 剩余部分填充FF
-    const padding = 'FF'.repeat(16 - (1 + 1 + 2 + 6));
+    const padding = 'F'.repeat(32 - (1 + 1 + 4 + 12));
     
-    return registeredStatus + lostStatus + hexBalance + paddedStudentId + padding;
+    // 组合成32位十六进制字符串
+    const cardData = registeredStatus + lostStatus + hexBalance + paddedStudentId + padding;
+    
+    // 验证长度是否为32位
+    if (cardData.length !== 32) {
+      console.error('生成的卡数据长度不正确:', cardData.length);
+      return null;
+    }
+    
+    return cardData;
   } catch (error) {
     console.error('构造卡数据失败:', error);
     return null;
