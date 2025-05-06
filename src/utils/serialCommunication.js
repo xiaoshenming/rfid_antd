@@ -197,7 +197,7 @@ class SerialCommunication {
     const RETRY_DELAY = 200;
     let retryCount = 0;
     let buffer = '';
-    
+
     while (retryCount < MAX_RETRIES) {
       try {
         // 发送RID命令读取卡ID
@@ -218,16 +218,16 @@ class SerialCommunication {
           const originalCallback = this.onDataReceived;
           this.onDataReceived = (data) => {
             buffer += data;
-            
+
             // 检查数据完整性
             if (buffer.includes('Id:') || buffer.length >= 10) {
               this.onDataReceived = originalCallback;
               clearTimeout(timeout);
-              
+
               // 处理接收到的数据
               const cardId = buffer.trim();
               buffer = '';
-              
+
               if (cardId) {
                 resolve(cardId);
               } else {
@@ -250,9 +250,10 @@ class SerialCommunication {
 
   /**
    * 读取卡数据块
+   * @param {string} [cardId] - 可选参数，已读取的卡ID
    * @returns {Promise<string|null>} - 卡数据或null（如果读取失败）
    */
-  async readCardData() {
+  async readCardData(cardId) {
     if (!this.port || !this.writer) return null;
 
     try {
@@ -268,34 +269,63 @@ class SerialCommunication {
 
         // 接收到的数据缓冲
         let dataBuffer = '';
+        let isComplete = false;
+        let lastDataTime = Date.now();
 
         // 设置一次性数据接收回调
         const originalCallback = this.onDataReceived;
         this.onDataReceived = (data) => {
+          if (isComplete) return;
+
           dataBuffer += data;
+          console.log('接收数据块:', data);
+          lastDataTime = Date.now();
 
-          // 检查是否接收到完整的数据块
-          if (dataBuffer.includes('RB1:1,D:')) {
-            // 恢复原始回调
-            this.onDataReceived = originalCallback;
-            clearTimeout(timeout);
-
-            // 提取数据部分
-            const match = dataBuffer.match(/RB1:1,D:([0-9A-F]{32})/);
-            if (match && match[1]) {
-              resolve(match[1]);
-            } else {
+          // 检查数据是否完整
+          const checkComplete = () => {
+            // 检查是否接收到完整的数据块
+            if (dataBuffer.includes('B1:1,D:')) {
+              const match = dataBuffer.match(/B1:1,D:([0-9A-F]{32})/);
+              if (match && match[1]) {
+                isComplete = true;
+                this.onDataReceived = originalCallback;
+                clearTimeout(timeout);
+                resolve(match[1]);
+                return true;
+              }
+            } else if (dataBuffer.includes('B1:0,C:')) {
+              // 读取失败
+              isComplete = true;
+              this.onDataReceived = originalCallback;
+              clearTimeout(timeout);
               resolve(null);
+              return true;
             }
-          } else if (dataBuffer.includes('RB1:0,C:')) {
-            // 读取失败
-            this.onDataReceived = originalCallback;
-            clearTimeout(timeout);
-            resolve(null);
+
+            // 检查是否超过500ms没有新数据
+            if (Date.now() - lastDataTime > 500) {
+              if (dataBuffer.length > 0) {
+                console.warn('数据接收超时，已接收:', dataBuffer);
+              }
+              isComplete = true;
+              this.onDataReceived = originalCallback;
+              clearTimeout(timeout);
+              resolve(null);
+              return true;
+            }
+            return false;
+          };
+
+          // 立即检查数据完整性
+          if (!checkComplete()) {
+            // 设置延迟检查，确保所有数据块都已接收
+            setTimeout(() => {
+              if (!isComplete) checkComplete();
+            }, 100);
           }
         };
-      });
-    } catch (error) {
+    });
+    }catch (error) {
       console.error('读取卡数据失败:', error);
       return null;
     }
