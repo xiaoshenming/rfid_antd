@@ -15,21 +15,26 @@ class SerialCommunication {
 
   /**
    * 请求串口访问权限并打开串口
-   * @param {number} baudRate - 波特率，默认115200
+   * @param {Object} options - 串口参数对象
+   * @param {number} options.baudRate - 波特率，默认115200
+   * @param {string} options.parity - 校验位，默认'none'
+   * @param {number} options.dataBits - 数据位，默认8
+   * @param {number} options.stopBits - 停止位，默认1
    * @returns {Promise<boolean>} - 是否成功打开串口
    */
-  async openPort(baudRate = 115200) {
+  async openPort({ baudRate = 115200, parity = 'none', dataBits = 8, stopBits = 1 } = {}) {
+    if (this.port && this.port.readable && this.port.writable) {
+      console.warn('串口已处于打开状态，不能重复打开');
+      return false;
+    }
     try {
       // 请求串口访问权限
       this.port = await navigator.serial.requestPort();
-      
-      // 打开串口连接
-      await this.port.open({ baudRate });
-      
+      // 打开串口连接，支持更多参数
+      await this.port.open({ baudRate, parity, dataBits, stopBits });
       // 创建读取器和写入器
       this.setupReader();
       this.setupWriter();
-      
       return true;
     } catch (error) {
       console.error('打开串口失败:', error);
@@ -42,10 +47,14 @@ class SerialCommunication {
    */
   setupReader() {
     if (!this.port || !this.port.readable) return;
-    
-    const textDecoder = new TextDecoder();
+    // 使用GB18030解码
+    let textDecoder;
+    try {
+      textDecoder = new TextDecoder('gb18030');
+    } catch (e) {
+      textDecoder = new TextDecoder(); // 浏览器不支持gb18030时降级
+    }
     this.keepReading = true;
-    
     this.readableStreamClosed = this.port.readable.pipeTo(new WritableStream({
       write: (chunk) => {
         // 将接收到的数据转换为文本
@@ -115,22 +124,25 @@ class SerialCommunication {
   /**
    * 发送数据到串口
    * @param {string} data - 要发送的数据
+   * @param {string} encoding - 编码，默认'gb18030'
    * @returns {Promise<boolean>} - 是否成功发送数据
    */
-  async sendData(data) {
+  async sendData(data, encoding = 'gb18030') {
     if (!this.writer) return false;
-    
     try {
-      // 确保数据以\n结尾
       if (!data.endsWith('\n')) {
         data += '\n';
       }
-      
-      // 将文本转换为Uint8Array并发送
-      const encoder = new TextEncoder();
-      const dataArrayBuffer = encoder.encode(data);
+      let dataArrayBuffer;
+      try {
+        const encoder = new TextEncoder(encoding);
+        dataArrayBuffer = encoder.encode(data);
+      } catch (e) {
+        // 浏览器不支持gb18030编码时降级
+        const encoder = new TextEncoder();
+        dataArrayBuffer = encoder.encode(data);
+      }
       await this.writer.write(dataArrayBuffer);
-      
       return true;
     } catch (error) {
       console.error('发送数据失败:', error);

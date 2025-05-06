@@ -21,6 +21,26 @@
               <a-select-option value="COM3">COM3</a-select-option>
               <a-select-option value="COM4">COM4</a-select-option>
             </a-select>
+            <a-select v-model:value="baudRate" style="width: 100%;margin-top:8px;" placeholder="波特率" :disabled="isPortOpen">
+              <a-select-option value="9600">9600</a-select-option>
+              <a-select-option value="19200">19200</a-select-option>
+              <a-select-option value="38400">38400</a-select-option>
+              <a-select-option value="57600">57600</a-select-option>
+              <a-select-option value="115200">115200</a-select-option>
+            </a-select>
+            <a-select v-model:value="parity" style="width: 100%;margin-top:8px;" placeholder="校验位" :disabled="isPortOpen">
+              <a-select-option value="none">无</a-select-option>
+              <a-select-option value="even">偶</a-select-option>
+              <a-select-option value="odd">奇</a-select-option>
+            </a-select>
+            <a-select v-model:value="dataBits" style="width: 100%;margin-top:8px;" placeholder="数据位" :disabled="isPortOpen">
+              <a-select-option value="7">7</a-select-option>
+              <a-select-option value="8">8</a-select-option>
+            </a-select>
+            <a-select v-model:value="stopBits" style="width: 100%;margin-top:8px;" placeholder="停止位" :disabled="isPortOpen">
+              <a-select-option value="1">1</a-select-option>
+              <a-select-option value="2">2</a-select-option>
+            </a-select>
             <a-button 
               type="primary" 
               :disabled="!selectedPort || isPortOpen" 
@@ -81,6 +101,10 @@ provide('serialComm', serialComm);
 // 状态变量
 const selectedPort = ref('');
 const isPortOpen = ref(false);
+const baudRate = ref(115200);
+const parity = ref('none');
+const dataBits = ref(8);
+const stopBits = ref(1);
 provide('isPortOpen', isPortOpen);
 const selectedKeys = ref(['dashboard']);
 const currentComponent = shallowRef(Dashboard);
@@ -167,16 +191,22 @@ const backToMain = () => {
 
 // 打开串口
 const openPort = async () => {
-  try {
-    const success = await serialComm.openPort(115200);
-    if (success) {
-      isPortOpen.value = true;
-      message.success(`已打开串口 ${selectedPort.value}`);
-    } else {
-      message.error('打开串口失败');
-    }
-  } catch (error) {
-    message.error(`打开串口失败: ${error.message}`);
+  if (!selectedPort.value) {
+    message.error('请选择串口');
+    return;
+  }
+  const options = {
+    baudRate: Number(baudRate.value),
+    parity: parity.value,
+    dataBits: Number(dataBits.value),
+    stopBits: Number(stopBits.value)
+  };
+  const success = await serialComm.openPort(options);
+  if (success) {
+    isPortOpen.value = true;
+    message.success('串口已打开');
+  } else {
+    message.error('打开串口失败');
   }
 };
 
