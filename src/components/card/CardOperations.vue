@@ -161,7 +161,8 @@
 <script setup>
 import { ref, reactive, onMounted, defineProps, defineEmits } from 'vue';
 import { message, Modal } from 'ant-design-vue';
-import { getSerialComm } from '../MainView.vue';
+import { inject } from 'vue';
+const serialComm = inject('serialComm');
 import { parseCardData, buildCardData, saveOperation, getOperations, clearOperations } from '../../utils/cardDataUtils';
 
 // 定义属性和事件
@@ -239,7 +240,7 @@ const recordColumns = [
 ];
 
 // 获取串口通信实例
-const serialComm = getSerialComm();
+// 使用inject获取的serialComm
 
 // 读取卡ID
 async function readCardId(formType) {
