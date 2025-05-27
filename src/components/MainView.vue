@@ -11,15 +11,12 @@
         <a-layout-sider width="250" class="sider">
           <div class="serial-control">
             <a-select
-              v-model:value="selectedPort"
-              style="width: 100%"
-              placeholder="选择串口"
-              :disabled="isPortOpen"
+                v-model:value="selectedPort"
+                style="width: 100%"
+                placeholder="选择串口"
+                :disabled="isPortOpen"
             >
-              <a-select-option value="COM1">COM1</a-select-option>
-              <a-select-option value="COM2">COM2</a-select-option>
-              <a-select-option value="COM3">COM3</a-select-option>
-              <a-select-option value="COM4">COM4</a-select-option>
+              <a-select-option v-for="port in comPorts" :key="port" :value="port">{{ port }}</a-select-option>
             </a-select>
             <a-select v-model:value="baudRate" style="width: 100%;margin-top:8px;" placeholder="波特率" :disabled="isPortOpen">
               <a-select-option value="9600">9600</a-select-option>
@@ -41,29 +38,29 @@
               <a-select-option value="1">1</a-select-option>
               <a-select-option value="2">2</a-select-option>
             </a-select>
-            <a-button 
-              type="primary" 
-              :disabled="!selectedPort || isPortOpen" 
-              @click="openPort"
-              class="port-button"
+            <a-button
+                type="primary"
+                :disabled="!selectedPort || isPortOpen"
+                @click="openPort"
+                class="port-button"
             >
               打开串口
             </a-button>
-            <a-button 
-              type="primary" 
-              danger 
-              :disabled="!isPortOpen" 
-              @click="closePort"
-              class="port-button"
+            <a-button
+                type="primary"
+                danger
+                :disabled="!isPortOpen"
+                @click="closePort"
+                class="port-button"
             >
               关闭串口
             </a-button>
           </div>
           <a-menu
-            v-model:selectedKeys="selectedKeys"
-            mode="inline"
-            :items="menuItems"
-            @click="handleMenuClick"
+              v-model:selectedKeys="selectedKeys"
+              mode="inline"
+              :items="menuItems"
+              @click="handleMenuClick"
           />
         </a-layout-sider>
         <a-layout-content class="content">
@@ -108,7 +105,8 @@ const stopBits = ref(1);
 provide('isPortOpen', isPortOpen);
 const selectedKeys = ref(['dashboard']);
 const currentComponent = shallowRef(Dashboard);
-
+// 新增的串口选项
+const comPorts = Array.from({length: 20}, (_, i) => `COM${i + 1}`);
 // 菜单项
 const menuItems = [
   {
